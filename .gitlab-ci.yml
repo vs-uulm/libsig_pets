@@ -1,0 +1,14 @@
+variables:
+  #start from a clean state
+  #GIT_STRATEGY: clone
+
+before_script:
+  - /usr/bin/pyvenv venv
+  - . venv/bin/activate
+  - python3 setup.py build
+  - python3 setup.py install
+  - pip3 install -e ".[testing]"
+
+doctests:
+  script:
+    - python3 -m "nose" --with-doctest --verbose
