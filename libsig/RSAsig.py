@@ -6,13 +6,19 @@ import hashlib
 class RSAsig(AbstractSignatureScheme):
     """This class implements the well known RSA-signature scheme.
     
-    >>> (pubkey, privkey) = RSAsig.keygen()
+    >>> (pubkey, privkey, primes) = RSAsig.keygen()
     >>> message = str.encode("Star wars is awesome")
     >>> signature = RSAsig.sign(privkey, message)
     >>> RSAsig.verify(pubkey, message, signature)
     True
     >>> RSAsig.verify(pubkey, message, signature+1)
     False
+    >>> gmpy.bit_length(pubkey[1])
+    2048
+    >>> gmpy.bit_length(primes[0])
+    1024
+    >>> gmpy.bit_length(primes[1])
+    1024
     """
     @staticmethod
     def keygen():
@@ -26,7 +32,8 @@ class RSAsig(AbstractSignatureScheme):
         d = gmpy.invert(e, (p-1)*(q-1))
         pubkey = (e,n)
         privkey = (d,n)
-        return (pubkey, privkey)
+        primes = (p,q)
+        return (pubkey, privkey, primes)
 
     @staticmethod
     def sign(privkey, message):
