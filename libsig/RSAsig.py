@@ -1,7 +1,7 @@
 from libsig.AbstractSignatureScheme import AbstractSignatureScheme
 from libsig.primes import gen_prime
-import gmpy2 as gm
-import hashlib
+import gmpy as gm
+from hashlib import sha256
 
 
 class RSAsig(AbstractSignatureScheme):
@@ -24,8 +24,8 @@ class RSAsig(AbstractSignatureScheme):
     @staticmethod
     def keygen():
         # generate the primes
-        p = gen_prime(1024, secret_prime=True, silent=True)
-        q = gen_prime(1024, secret_prime=True, silent=True)  # this can be sped up, must read more libgcrypt :D
+        p = int(gen_prime(1024, secret_prime=True, silent=True))
+        q = int(gen_prime(1024, secret_prime=True, silent=True))  # this can be sped up, must read more libgcrypt :D
         n = p*q
         e = 65537
         d = gm.invert(e, (p-1)*(q-1))
@@ -38,12 +38,12 @@ class RSAsig(AbstractSignatureScheme):
     def sign(privkey, message):
         """returns a signature."""
         d, n = privkey
-        hash_as_int = int.from_bytes(hashlib.sha256(message).digest(), 'little')
+        hash_as_int = int(sha256(message).hexdigest(), 16)
         return pow(hash_as_int, d, n)
 
     @staticmethod
     def verify(pubkey, message, signature):
         """returns True iff the signature is correct."""
         e, n = pubkey
-        hash_as_int = int.from_bytes(hashlib.sha256(message).digest(), 'little')
+        hash_as_int = int(sha256(message).hexdigest(), 16)
         return pow(signature, e, n) == hash_as_int

@@ -1,5 +1,4 @@
-import gmpy2 as gm
-from gmpy2 import mpz, is_prime
+from gmpy import mpz, is_prime, setbit as bit_set, next_prime
 from random import SystemRandom
 
 """ generation of primes
@@ -45,7 +44,7 @@ def _prime_generator_next_prime(seed, bit_count):
     prime = seed
     step = 0
     while 20000 > (prime-seed):
-        prime = gm.next_prime(prime)
+        prime = next_prime(prime)
         if step % 10 == 0:
             print(".", end="", flush=True)
         step += 1
@@ -68,10 +67,10 @@ def _prime_seed_generator(bit_count, secret_prime=True):
     sys_rand = SystemRandom()
     while True:
         seed = mpz(sys_rand.getrandbits(bit_count))
-        seed = seed.bit_set(bit_count-1)  # ensure bit_count length, by setting highest bit
+        seed = bit_set(seed, bit_count-1)  # ensure bit_count length, by setting highest bit
         if secret_prime:
-            seed = seed.bit_set(bit_count-2)  # ensure that prime will be suitable for the RSA modulus
-        seed = seed.bit_set(0)  # create an uneven seed
+            seed = bit_set(seed, bit_count-2)  # ensure that prime will be suitable for the RSA modulus
+        seed = bit_set(seed, 0)  # create an uneven seed
         yield seed
 
 
@@ -79,16 +78,16 @@ def is_safe_prime(prime):
     """for "safe prime" generation, check that (p-1)/2 is prime.
     Since aprime is odd, We just need to divide by 2
     """
-    return gm.is_prime(prime//2)
+    return is_prime(prime//2)
 
 
 def gen_prime(bit_count, secret_prime=True, randomlevel=0, extra_check=None, silent=False):
     """
     >>> p = gen_prime(1024 // 2, extra_check=is_safe_prime, silent=True)
-    >>> gm.is_prime(p)
-    True
-    >>> gm.is_prime(p//2)
-    True
+    >>> is_prime(p)
+    1
+    >>> is_prime(p//2)
+    1
     """
 
     min_bits = 16
