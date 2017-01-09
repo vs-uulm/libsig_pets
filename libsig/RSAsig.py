@@ -1,6 +1,6 @@
 from libsig.AbstractSignatureScheme import AbstractSignatureScheme
 from libsig.primes import gen_prime
-import gmpy as gm
+import gmpy2 as gm
 from hashlib import sha256
 
 
@@ -22,10 +22,10 @@ class RSAsig(AbstractSignatureScheme):
     1024
     """
     @staticmethod
-    def keygen():
+    def keygen(size=1024):
         # generate the primes
-        p = int(gen_prime(1024, secret_prime=True, silent=True))
-        q = int(gen_prime(1024, secret_prime=True, silent=True))  # this can be sped up, must read more libgcrypt :D
+        p = int(gen_prime(size, secret_prime=True))
+        q = int(gen_prime(size, secret_prime=True))  # this can be sped up, must read more libgcrypt :D
         n = p*q
         e = 65537
         d = gm.invert(e, (p-1)*(q-1))
