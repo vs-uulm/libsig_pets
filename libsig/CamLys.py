@@ -1,5 +1,6 @@
 from libsig.AbstractSignatureScheme import AbstractSignatureScheme
 from libsig.primes import gen_prime, is_safe_prime
+from libsig import primes
 import gmpy2 as gm
 from gmpy2 import mpz
 from hashlib import sha256
@@ -25,11 +26,11 @@ class BasicCamLysParams:
     >>> bcl.verify(e, s, v+1, message)
     False
     """
-    @staticmethod
-    def generate_new_keys(size=1024):
+    @classmethod
+    def generate_new_keys(cls, size=1024):
         p = gen_prime(size, extra_check=is_safe_prime)
         q = gen_prime(size, extra_check=is_safe_prime)
-        return BasicCamLysParams(p, q)
+        return cls(p, q)
 
     def __init__(self, p, q, l=160):
         if not gm.is_prime(p//2):
@@ -45,16 +46,16 @@ class BasicCamLysParams:
         self._q = q
         self._n = p*q
 
-        self._a = self._gen_quad_remainder()
-        self._b = self._gen_quad_remainder()
-        self._c = self._gen_quad_remainder()
+        self._a = self._gen_quad_residue()
+        self._b = self._gen_quad_residue()
+        self._c = self._gen_quad_residue()
 
         self._l = l
 
-    def _gen_quad_remainder(self):
+    def _gen_quad_residue(self):
         return gm.powmod(mpz(secrets.randbits(self.bits)), 2, self.modulus)
 
-    def _make_sign_params(self, message, l=160):
+    def _make_sign_params(self, message):
         m = hash_message_as_int(message)
 
         ln = gm.bit_length(self.modulus)
@@ -74,7 +75,7 @@ class BasicCamLysParams:
 
     @property
     def bits(self):
-        return self._q.bit_length()
+        return gm.bit_length(self._q)
 
     @property
     def a(self):
@@ -112,8 +113,13 @@ def hash_message_as_int(message, hashfunction=sha256):
     return int(hashfunction(message).hexdigest(), 16)
 
 
-safe_prime_1 = mpz(165195723491320276070781388314661969203850281718474434373244184377255543234989828926944838604093072094712871850499619593790369229388254520118976785865223757486364945116449578212404927018534927095601779387234560717995901634286739274946633445438628068352786244592876000571239397727491516595455177480353611868067)
-safe_prime_2 = mpz(157862269064439940228510655717005367172381033749718149478446373827553460462372923061777429784196645698005719895063367235052595100578207083662396149553997181007483299532237781653582133926154327260332752894466253219361896539391167392180730877701203825832727693064276062112645179588487253289166027092860869897619)
+def multi_powmod(xs, ys, n):
+    if len(xs) != len(ys):
+        raise ValueError("xs and ys don't have the same size")
+    result = 1
+    for x, y in zip(xs, ys):
+        result = (result * pow(x, y, n)) % n
+    return result
 
 
 class BasicCamLys(AbstractSignatureScheme):
@@ -126,7 +132,7 @@ class BasicCamLys(AbstractSignatureScheme):
     >>> BasicCamLys.verify(bcl, message, signature)
     True
     """
-    _BCL = BasicCamLysParams(safe_prime_1, safe_prime_2)
+    _BCL = BasicCamLysParams(primes.safe_prime_2048_1, primes.safe_prime_2048_2)
 
     @staticmethod
     def keygen():
@@ -147,3 +153,67 @@ class BasicCamLys(AbstractSignatureScheme):
     def verify(pubkey, message, signature):
         """returns True iff the signature is correct."""
         return pubkey.verify(*signature, message)
+
+
+class BlockCamLysParams(BasicCamLysParams):
+    """this just binds the real deal to the unfit interface o_0
+
+    it is capable of signing one hashed message.
+    >>> mcl = BlockCamLysParams(primes.safe_prime_1024_1, primes.safe_prime_1024_2, 4)
+    >>> messages = [str.encode(message) for message in "Star wars is awesome".split()]
+    >>> signature = mcl.sign(messages)
+    >>> mcl.verify(*signature, messages)
+    True
+    """
+
+    def __init__(self, p, q, L):
+        super().__init__(p, q)
+
+        del self._a
+
+        self._as = [a for a in self._gen_quad_residues(L)]
+
+    def _gen_quad_residues(self, count):
+        for count in range(0, count):
+            yield self._gen_quad_residue()
+
+    @property
+    def a(self):
+        return self._as
+
+    def calculate_abc(self, ms, s):
+        result = multi_powmod(self.a + [self.b], ms + [s], self.modulus)
+        result = (result * self.c) % self.modulus
+        return result
+
+    def sign(self, messages):
+        e, ms, s = self._make_sign_params(messages)
+
+        d = gm.invert(e, (self._p-1)*(self._q-1))
+
+        pre_v = self.calculate_abc(ms, s)
+        v = pow(pre_v, d, self.modulus)
+        return e, s, v
+
+    def verify(self, e, s, v, messages):
+        ms = [hash_message_as_int(m) for m in messages]
+        abc = self.calculate_abc(ms, s)
+        return pow(v, e, self.modulus) == abc
+
+    def _make_sign_params(self, messages):
+        if len(messages) != len(self.a):
+            raise ValueError("must have %d messages to sign, you provided %d", len(self.a), len(messages) )
+        ms = [hash_message_as_int(m) for m in messages]
+
+        ln = gm.bit_length(self.modulus)
+        lm = gm.bit_length(ms[0])
+        le = lm+2
+        ls = lm + ln + self.l
+
+        e = gen_prime(le, secret_prime=False)
+        s = secrets.randbits(ls)
+        s = gm.bit_set(s, ls-1)
+
+        return e, ms, s
+
+
