@@ -156,11 +156,10 @@ class BasicCamLys(AbstractSignatureScheme):
 
 
 class BlockCamLysParams(BasicCamLysParams):
-    """this just binds the real deal to the unfit interface o_0
+    """Implementation of the CL-RSA for signing Blocks of Messages
 
-    it is capable of signing one hashed message.
-    >>> mcl = BlockCamLysParams(primes.safe_prime_1024_1, primes.safe_prime_1024_2, 4)
     >>> messages = [str.encode(message) for message in "Star wars is awesome".split()]
+    >>> mcl = BlockCamLysParams(primes.safe_prime_1024_1, primes.safe_prime_1024_2, len(messages))
     >>> signature = mcl.sign(messages)
     >>> mcl.verify(*signature, messages)
     True
