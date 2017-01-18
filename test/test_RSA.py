@@ -28,9 +28,9 @@ class TestRSAsig(unittest.TestCase):
         """
         msg1=10
         msg2=2
-        sig1 = RSAsig.sign(self.privkey, msg1)
-        sig2 = RSAsig.sign(self.privkey, msg2)
-        self.assertNotEqual(msg*msg2, sig1*sig2)
+        sig1 = RSAsig.sign(self.privkey, chr(msg1).encode())
+        sig2 = RSAsig.sign(self.privkey, chr(msg2).encode())
+        self.assertNotEqual(msg1*msg2, sig1*sig2)
 
 if __name__ == 'main':
     unittest.main()
