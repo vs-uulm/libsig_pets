@@ -1,5 +1,5 @@
 # from gmpy import mpz, is_prime, setbit as bit_set, next_prime
-from gmpy2 import mpz, is_prime, bit_set
+from gmpy2 import mpz, is_strong_bpsw_prp, bit_set
 from libsig import secrets
 
 """ generation of primes
@@ -38,13 +38,13 @@ def _prime_check_count(bit_count):
 
 def _prime_generator(seed, bit_count, verbose=False):
     checks = _prime_check_count(bit_count)
-    if is_prime(seed, checks):
+    if is_strong_bpsw_prp(seed, checks):
         yield seed
     for step in range(0, 20000, 2):
         prime = seed + step
         if verbose and step % 20 == 0 :
             print(".", end="", flush=True)
-        if is_prime(prime, checks):
+        if is_strong_bpsw_prp(prime, checks):
             yield prime
 
 
@@ -60,9 +60,9 @@ def _prime_seed_generator(bit_count, secret_prime=True):
 
 def is_safe_prime(prime):
     """for "safe prime" generation, check that (p-1)/2 is prime.
-    Since aprime is odd, We just need to divide by 2
+    Since a prime is odd, We just need to divide by 2
     """
-    return is_prime(prime//2)
+    return is_strong_bpsw_prp(prime//2)
 
 
 def gen_prime(bit_count, secret_prime=True, randomlevel=0, extra_check=None, verbose=False):
