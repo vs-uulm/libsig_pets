@@ -29,6 +29,15 @@ libsig.RSAsig module
     :show-inheritance:
 
 
+libsig.CamLys module
+--------------------
+
+.. automodule:: libsig.CamLys
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
 Module contents
 ---------------
 
@@ -36,3 +45,5 @@ Module contents
     :members:
     :undoc-members:
     :show-inheritance:
+
+
