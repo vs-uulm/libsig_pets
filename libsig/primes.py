@@ -37,14 +37,13 @@ def _prime_check_count(bit_count):
 
 
 def _prime_generator(seed, bit_count, verbose=False):
-    checks = _prime_check_count(bit_count)
-    if is_strong_bpsw_prp(seed, checks):
+    if is_strong_bpsw_prp(seed):
         yield seed
     for step in range(0, 20000, 2):
         prime = seed + step
         if verbose and step % 20 == 0 :
             print(".", end="", flush=True)
-        if is_strong_bpsw_prp(prime, checks):
+        if is_strong_bpsw_prp(prime):
             yield prime
 
 
@@ -68,10 +67,10 @@ def is_safe_prime(prime):
 def gen_prime(bit_count, secret_prime=True, randomlevel=0, extra_check=None, verbose=False):
     """
     >>> p = gen_prime(1024 // 2, extra_check=is_safe_prime)
-    >>> is_prime(p)
-    1
-    >>> is_prime(p//2)
-    1
+    >>> is_strong_bpsw_prp(p)
+    True
+    >>> is_strong_bpsw_prp(p//2)
+    True
     """
 
     min_bits = 16
