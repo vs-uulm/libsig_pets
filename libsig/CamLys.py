@@ -36,8 +36,8 @@ class BasicCamLysParams:
         if not gm.is_prime(p//2):
             raise ValueError("primes must be safe and p is not, invalid parameters")
 
-        if not gm.is_prime(p//2):
-            raise ValueError("primes must be safe and p is not, invalid parameters")
+        if not gm.is_prime(q//2):
+            raise ValueError("primes must be safe and q is not, invalid parameters")
 
         if not p.bit_length() == q.bit_length():
             raise ValueError("primes must be equal in length, invalid parameters")
@@ -100,8 +100,8 @@ class BasicCamLysParams:
         e, m, s = self._make_sign_params(message)
 
         d = gm.invert(e, (self._p-1)*(self._q-1))
-        pre_v = self.calculate_abc(m, s)
-        v = pow(pre_v, d, self.modulus)
+        abc = self.calculate_abc(m, s)
+        v = pow(abc, d, self.modulus)
         return e, s, v
 
     def verify(self, e, s, v, message):
@@ -190,8 +190,8 @@ class BlockCamLysParams(BasicCamLysParams):
 
         d = gm.invert(e, (self._p-1)*(self._q-1))
 
-        pre_v = self.calculate_abc(ms, s)
-        v = pow(pre_v, d, self.modulus)
+        abc = self.calculate_abc(ms, s)
+        v = pow(abc, d, self.modulus)
         return e, s, v
 
     def verify(self, e, s, v, messages):
@@ -201,7 +201,7 @@ class BlockCamLysParams(BasicCamLysParams):
 
     def _make_sign_params(self, messages):
         if len(messages) != len(self.a):
-            raise ValueError("must have %d messages to sign, you provided %d", len(self.a), len(messages) )
+            raise ValueError("must have %d messages to sign, you provided %d", len(self.a), len(messages))
         ms = [hash_message_as_int(m) for m in messages]
 
         ln = gm.bit_length(self.modulus)
