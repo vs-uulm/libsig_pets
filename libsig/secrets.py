@@ -24,9 +24,18 @@ _sysrand = SystemRandom()
 randbits = _sysrand.getrandbits
 choice = _sysrand.choice
 
+
 def randbelow(exclusive_upper_bound):
     """Return a random int in the range [0, n)."""
     return _sysrand._randbelow(exclusive_upper_bound)
+
+
+def randrange(inclusive_lower_bound, exclusive_upper_bound):
+    r = randbelow(exclusive_upper_bound)
+    while r < inclusive_lower_bound:
+        r = randbelow(exclusive_upper_bound)
+    return r
+
 
 DEFAULT_ENTROPY = 32  # number of bytes to return by default
 
