@@ -23,29 +23,57 @@ class RenHarn:
         the ring, including the pubkeys corresponding to privkey. The
         message is an array of bytes.
         """
-        k = int(sha256(message).hexdigest(), 16)
+        h = lambda m: int(sha256(m).hexdigest(), 16)
+        k = h(message)
         v = randrange(1, p)
         messages = []
         n = len(pubkeys)
-        indices = [i for i in range(n) if i != s] # s = index of signer
-        for i in indices:
+        for i in range(n):
             e_i = pubkeys[i]
-            a_i = randrange(1,p-1)
+            a_i = randrange(1, p - 1)
             while 1:
-                b_i = randrange(1, p-1)
-                if gcd(b_i, p-1) == 1:
+                b_i = randrange(1, p - 1)
+                if gcd(b_i, p - 1) == 1:
                     break
-            alpha_i = pow(g, a_i, p)*pow(e_i, b_i, p) % p
-            beta_i = - alpha_i * invert(b_i, p-1) % (p-1)
-            m_i = a_i * beta_i % (p-1)
-            messages.append(m_i)
-
-        raise NotImplementedError
+            alpha_i = (pow(g, a_i, p) * pow(e_i, b_i, p)) % p
+            beta_i = (- alpha_i * invert(b_i, p - 1)) % (p - 1)
+            m_i = (a_i * beta_i) % (p - 1)
+            messages.append((m_i, alpha_i, beta_i))
+        messages[0] = (0, None, None)
+        v_i_s = [0, h(message + str(v))]
+        for i in [(x % n) for x in irange(2, n)]:
+            v_i_s[i] = h(message + str((v_i_s[i - 1] + messages[i - 1]) % p))
+        messages[0] = (v - v_i_s[0], None, None)
+        while 1:
+            l = randrange(2, p)
+            if gcd(l, p - 1) == 1:
+                break
+        alpha_s = pow(g, l, p)
+        beta_s = ((messages[0] - privkey * alpha_s) * invert(l, p - 1)) % (p - 1)
+        messages[0][1] = alpha_s
+        messages[0][2] = beta_s
+        z = randrange(0, n)
+        messages_ = []
+        for i in range(n):
+            messages_.append(messages[i - z])
+        return pubkeys, z, v_i_s[z], messages_
 
     @staticmethod
-    def verify(pubkeys, message, signature):
-        """returns True iff the signature is correct."""
-        raise NotImplementedError
+    def verify(pubkeys, i_0, v_i_0, message, ms, g, p):
+        n = pubkeys.length
+        for i in range(n):
+            if pow(g, ms[i][0], p) != (pow(pubkeys[i], ms[i][1], p) * pow(ms[i][1], ms[i][2], p)) % p:
+                return False
+
+        h = lambda m: int(sha256(m).hexdigest(), 16)
+        v = h(message + str((ms[i_0] + v_i_0) % p))
+        for i in range(1, n):
+            v = h(message + str((ms[i + i_0] + v) % p))
+        return v == v_i_0
+
+
+def irange(start, stop):
+    return range(start, stop + 1)
 
 
 class ElGamal:
@@ -53,14 +81,14 @@ class ElGamal:
     def keygen(size=1024):
         """returns a (public, private, generator, prime)-keypair."""
         p = gen_prime(size, extra_check=is_safe_prime)
-        q = p//2
+        q = p // 2
         while 1:
             g = randrange(3, p)
             if pow(g, 2, p) == 1:
                 continue
             if pow(g, q, p) == 1:
                 continue
-            if divmod(p-1, g)[1] == 0:
+            if divmod(p - 1, g)[1] == 0:
                 continue
             if divmod(p - 1, invert(g, p))[1] == 0:
                 continue
@@ -79,7 +107,7 @@ class ElGamal:
         while gcd(l, p - 1) != 1:
             l = randrange(2, p - 1)
         alpha = pow(g, l, p)
-        beta = (m - d*alpha)*invert(l, p - 1) % (p - 1)
+        beta = ((m - d * alpha) * invert(l, p - 1)) % (p - 1)
         return alpha, beta
 
     @staticmethod
@@ -89,4 +117,4 @@ class ElGamal:
         if alpha < 1 or alpha >= p:
             return False
         m = int(sha256(message).hexdigest(), 16)
-        return pow(g, m) == pow(e, alpha, p)*pow(e, alpha, p) % p
+        return pow(g, m) == (pow(e, alpha, p) * pow(e, alpha, p)) % p
