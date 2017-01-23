@@ -1,7 +1,8 @@
-from libsig.primes import gen_prime, is_safe_prime
-from libsig.secrets import randrange
 from gmpy2 import invert, gcd
 from hashlib import sha256
+
+from libsig.primes import gen_prime, is_safe_prime
+from libsig.secrets import randrange
 
 
 class RenHarn:
@@ -30,20 +31,20 @@ class RenHarn:
         for i in indices:
             e_i = pubkeys[i]
             a_i = randrange(1,p-1)
-            while(1):
+            while 1:
                 b_i = randrange(1, p-1)
                 if gcd(b_i, p-1) == 1:
                     break
-            α_i = pow(g, a_i, p)*pow(e_i, b_i, p) % p
-            β_i = - α_i * invert(b_i, p-1) % (p-1)
-            m_i = a_i * β_i % (p-1)
+            alpha_i = pow(g, a_i, p)*pow(e_i, b_i, p) % p
+            beta_i = - alpha_i * invert(b_i, p-1) % (p-1)
+            m_i = a_i * beta_i % (p-1)
             messages.append(m_i)
 
         raise NotImplementedError
 
     @staticmethod
     def verify(pubkeys, message, signature):
-        """returns True if the signature is correct."""
+        """returns True iff the signature is correct."""
         raise NotImplementedError
 
 
@@ -77,15 +78,15 @@ class ElGamal:
         l = randrange(2, p - 1)
         while gcd(l, p - 1) != 1:
             l = randrange(2, p - 1)
-        α = pow(g, l, p)
-        β = (m - d*α)*invert(l, p - 1) % (p - 1)
-        return α, β
+        alpha = pow(g, l, p)
+        beta = (m - d*alpha)*invert(l, p - 1) % (p - 1)
+        return alpha, beta
 
     @staticmethod
     def verify(e, message, signature, g, p):
-        """returns True if the signature is correct."""
-        α, β = signature
-        if α < 1 or α >= p:
+        """returns True iff the signature is correct."""
+        alpha, beta = signature
+        if alpha < 1 or alpha >= p:
             return False
         m = int(sha256(message).hexdigest(), 16)
-        return pow(g, m) == pow(e, α, p)*pow(e, α, p) % p
+        return pow(g, m) == pow(e, alpha, p)*pow(e, alpha, p) % p
