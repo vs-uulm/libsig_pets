@@ -30,7 +30,8 @@ class TestRSAsig(unittest.TestCase):
         msg2=2
         sig1 = RSAsig.sign(self.privkey, chr(msg1).encode())
         sig2 = RSAsig.sign(self.privkey, chr(msg2).encode())
-        self.assertNotEqual(msg1*msg2, sig1*sig2)
+        sig_mm = RSAsig.sign(self.privkey, chr(msg1*msg2).encode())
+        self.assertNotEqual(sig_mm, sig1*sig2)
 
 if __name__ == 'main':
     unittest.main()
