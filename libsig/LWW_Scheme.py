@@ -8,22 +8,9 @@ from libsig.AbstractRingSignatureScheme import AbstractRingSignatureScheme
 
 class LWW(AbstractRingSignatureScheme):
     """Some Docu"""
-    def __init(self, q):
-        self._q = q
-        self._g = randint(q/2, q-1) # Generator der Gruppe G zur Primzahl q. Da q Prim gilt dass jedes g mit 0<g<q ein Generator
 
-    @property
-    def q(self):
-        """Order of group G"""
-        return self._q
-
-    @property
-    def g(self):
-        """Generator of Group G with the prime order q"""
-        return self._g
-
-
-    def h1(self, x):
+    @staticmethod
+    def h1(x, q):
         """
         Hash Funktion 1
         bekommt einen x-Wert und berechnet einen Sha2-512 Bit Wert daraus (im Modul zu q)
@@ -31,12 +18,12 @@ class LWW(AbstractRingSignatureScheme):
         :return:
         """
         y = int(hashlib.sha512(x).hexdigest(), 16)
-        z = y % self.q
+        z = y % q
         return z
 
 
-
-    def h2(self, x):
+    @staticmethod
+    def h2(x, q):
         """
         Hash-Funktion 2
         bekommt einen x-Wert und berechnet einen Sha3-512 Bit Wert daraus (im Modul zu q)
@@ -45,7 +32,7 @@ class LWW(AbstractRingSignatureScheme):
         :return:
         """
         y = int(hashlib.sha3_512(x).hexdigest(), 16)
-        z = y % self.q
+        z = y % q
         return z
 
 
@@ -70,28 +57,61 @@ class LWW(AbstractRingSignatureScheme):
         return [keys, useri[1]]
 
 
-    def _checkWhichUser(self, privUser, L):
+    @staticmethod
+    def __verifyQandG(pubkeys):
         """
-        Methode bekommt einen priv. Key und eine Liste von public Keys und gibt dann die Position des eigenen public keys zurück
-        :param L:
+        Verifies that all Pubkeys have the same q and g and returns them
+        :param pubkeys: List of Public Keys with q and g (y, q, g)
+        :return: (q,g) if all are the same
+        """
+        q = pubkeys[0][1]
+        g = pubkeys[0][2]
+        for completePubKey in pubkeys:
+            if q != completePubKey[1]:
+                raise ValueError("A q is not equal to the others, check your keys")
+            if g != completePubKey[2]:
+                raise ValueError("A g is not equal to the others, check your keys")
+
+        return q, g
+
+    @staticmethod
+    def __checkWhichUser(privUser, pubkeys):
+        """
+        Methode bekommt einen priv. Key und eine Liste von public Keys (y,q,g) und gibt dann die Position des eigenen public keys zurück
+        :param pubkeys:
         :return:
         """
-        # list.index(tmp)
-        tmp = pow(self.g, privUser, self.q)
-        for i in range(len(L)):
-            if tmp == L[i]:
+        userIndex = 0
+        q, g = LWW.__verifyQandG(pubkeys)
+        tmp = pow(g, privUser, q)
+        for i in range(len(pubkeys)):
+            if tmp == pubkeys[i]:
                 userIndex = i + 1
                 break
         return userIndex
 
+
     # ------ Anfang -----
-    def keygen(self):
-        x = randint(1, self.q - 1)
-        y = pow(self.g, x, self.q)
-        return [y, x]
+    @staticmethod
+    def keygen(q=0, g=0):
+        """
+        Creates Private and Public key of optional given q and g
+        :param q: Order of group G
+        :param g: Generator of Group G with the prime order q
+        :return: [y=public, x=private, q=Order, g=Generator]
+        """
+        if q == 0:
+            q = safe_prime_1024_1
+        if g == 0:
+            g = randint(1, q)
+
+        x = randint(1, q - 1)
+        y = pow(g, x, q)
+        return [y, x, q, g]
 
     # Sign-Methode für Ringsignatur
-    def ringsign(self, privKeyUser, pubkeys, message):
+    @staticmethod
+    def ringsign(privKeyUser, pubkeys, message):
         # Check which user we are
         userIndex = checkWhichUser(privKeyUser, pubkeys)
 
@@ -141,6 +161,7 @@ class LWW(AbstractRingSignatureScheme):
 
 
     # Methode zum Prüfen, ob eine Signatur bei gegebenen public Keys korrekt erzeugt wurde
+    @staticmethod
     def verify(pubkeys, message, signature):
         # Part 1
         c = signature[0]
