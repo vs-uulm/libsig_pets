@@ -1,6 +1,5 @@
 import hashlib
 import sys
-import gmpy2
 from random import randint
 from libsig.primes import *
 from libsig.AbstractRingSignatureScheme import AbstractRingSignatureScheme
@@ -14,6 +13,7 @@ class LWW(AbstractRingSignatureScheme):
         """
         Hash Funktion 1
         bekommt einen x-Wert und berechnet einen Sha2-512 Bit Wert daraus (im Modul zu q)
+        :param q:
         :param x:
         :return:
         """
@@ -21,52 +21,30 @@ class LWW(AbstractRingSignatureScheme):
         z = y % q
         return z
 
-
     @staticmethod
     def h2(x, q):
         """
         Hash-Funktion 2
         bekommt einen x-Wert und berechnet einen Sha3-512 Bit Wert daraus (im Modul zu q)
         laut Henning ist der dann automatisch in G
+        :param q:
         :param x:
         :return:
         """
-        y = int(hashlib.sha3_512(x).hexdigest(), 16)
+        y = int(hashlib.sha512(x).hexdigest(), 16)
         z = y % q
         return z
 
-
-    def generatorDummie(self):
-        """
-        eine unserer Test-Methoden
-        erstellt mal eine Liste mit public Keys und gibt uns einen (zufällig ausgewählten) zugehörigen privat key als eigenen privat-Key zurück
-        :return:
-        """
-        listKeys = []
-        for i in range(self.n):
-            b = self.keygen()
-        listKeys.append(b)
-
-        userIndexi = randint(1, self.n)
-        useri = listKeys[userIndexi - 1]
-
-        keys = []
-        for i in range(len(listKeys)):
-            keys.append(listKeys[i][0])
-
-        return [keys, useri[1]]
-
-
     @staticmethod
-    def __verifyQandG(pubkeys):
+    def __verifyQandG(pubKeys):
         """
-        Verifies that all Pubkeys have the same q and g and returns them
-        :param pubkeys: List of Public Keys with q and g (y, q, g)
+        Verifies that all pubKeys have the same q and g and returns them
+        :param pubKeys: List of Public Keys with q and g (y, q, g)
         :return: (q,g) if all are the same
         """
-        q = pubkeys[0][1]
-        g = pubkeys[0][2]
-        for completePubKey in pubkeys:
+        q = pubKeys[0][1]
+        g = pubKeys[0][2]
+        for completePubKey in pubKeys:
             if q != completePubKey[1]:
                 raise ValueError("A q is not equal to the others, check your keys")
             if g != completePubKey[2]:
@@ -75,21 +53,21 @@ class LWW(AbstractRingSignatureScheme):
         return q, g
 
     @staticmethod
-    def __checkWhichUser(privUser, pubkeys):
+    def __checkWhichUser(privUser, pubKeys):
         """
-        Methode bekommt einen priv. Key und eine Liste von public Keys (y,q,g) und gibt dann die Position des eigenen public keys zurück
-        :param pubkeys:
+        Methode bekommt einen priv. Key und eine Liste von public Keys (y,q,g) und gibt dann die Position des eigenen public keys zurueck
+        :param pubKeys:
         :return:
         """
         userIndex = 0
-        q, g = LWW.__verifyQandG(pubkeys)
+        q = pubKeys[0][1]
+        g = pubKeys[0][2]
         tmp = pow(g, privUser, q)
-        for i in range(len(pubkeys)):
-            if tmp == pubkeys[i]:
-                userIndex = i + 1
+        for i in range(len(pubKeys)):
+            if tmp == pubKeys[i][0]:
+                userIndex = i
                 break
         return userIndex
-
 
     # ------ Anfang -----
     @staticmethod
@@ -109,77 +87,77 @@ class LWW(AbstractRingSignatureScheme):
         y = pow(g, x, q)
         return [y, x, q, g]
 
-    # Sign-Methode für Ringsignatur
+    # sign-Methode fuer Ringsignatur
     @staticmethod
-    def ringsign(privKeyUser, pubkeys, message):
+    def ringsign(privKeyUser, pubKeys, message):
+        q, g = LWW.__verifyQandG(pubKeys)
         # Check which user we are
-        userIndex = checkWhichUser(privKeyUser, pubkeys)
+        userIndex = LWW.__checkWhichUser(privKeyUser, pubKeys)
 
         # Part 1
-        h = h2(str(pubkeys).encode())
+        h = LWW.h2(str(pubKeys).encode(), q)
         ytilde = pow(h, privKeyUser, q)
 
         # Part 2
-        # Hier werden alle benötigten Teile zu einer Liste zusammengefügt, die dann gehashed unser neues c ergeben
+        # Hier werden alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
         u = randint(1, q - 1)
-        K = pubkeys
+        K = pubKeys
         K.append(ytilde)
         K.append(message)
         K.append(pow(g, u, q))
         K.append(pow(h, u, q))
-        c = H1(str(K).encode())
+        c = LWW.h1(str(K).encode(), q)
 
         # Part 3
-        # hier wird c immer mit dem neuen c-Wert überschrieben, da der vorherige nicht mehr benötigt wird
+        # hier wird c immer mit dem neuen c-Wert ueberschrieben, da der vorherige nicht mehr benoetigt wird
         c1 = 0
-        s = range(len(pubkeys))
-        for i in range(1, len(pubkeys)):
-            j = (i + userIndex) % len(pubkeys)
+        s = range(len(pubKeys))
+        for i in range(1, len(pubKeys)):
+            j = (i + userIndex) % len(pubKeys)
             if j == 1:
                 c1 = c
             si = randint(1, q - 1)
             s[j - 1] = si
 
-            # Hier werden wieder alle benötigten Teile zu einer Liste zusammengefügt, die dann gehashed unser neues c ergeben
-            K = pubkeys
+            # Hier werden wieder alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
+            K = pubKeys
             K.append(ytilde)
             K.append(message)
-            K.append(pow(g, si, q) * pow(pubkeys[j], c, q))
+            K.append(pow(g, si, q) * pow(pubKeys[j], c, q))
             K.append(pow(h, si, q) * pow(ytilde, c, q))
-            c = H1(str(K).encode())
+            c = LWW.h1(str(K).encode(), q)
 
             # Part 4
         s[userIndex - 1] = (u - c * privKeyUser) % q
 
         # Finish
-        Sig = []
-        Sig.append(c1)
-        Sig.append(s)
-        Sig.append(ytilde)
+        sig = []
+        sig.append(c1)
+        sig.append(s)
+        sig.append(ytilde)
 
-        return Sig
+        return sig
 
-
-    # Methode zum Prüfen, ob eine Signatur bei gegebenen public Keys korrekt erzeugt wurde
+    # Methode zum Pruefen, ob eine signatur bei gegebenen public Keys korrekt erzeugt wurde
     @staticmethod
-    def verify(pubkeys, message, signature):
+    def verify(pubKeys, message, signature):
+        q, g = LWW.__verifyQandG(pubKeys)
+
         # Part 1
         c = signature[0]
-        h = H2(str(pubkeys).encode())
-        z1 = 0
-        z2 = 0
-        K = []
-        for i in range(1, len(pubkeys) + 1):
-            z1 = pow(g, signature[i], q) * pow(pubkeys[i - 1], c, q)
+        h = LWW.h2(str(pubKeys).encode(), q)
+
+        for i in range(1, len(pubKeys) + 1):
+            z1 = pow(g, signature[i], q) * pow(pubKeys[i - 1], c, q)
             z2 = pow(h, signature[i], q) * pow(signature[len(signature) - 1], c, q)
 
-            # Hier werden wieder alle benötigten Teile zu einer Liste zusammengefügt, die dann gehashed unser neues c ergeben
-            K = pubkeys
+            # Hier werden wieder alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
+            K = pubKeys
             K.append(signature[len(signature) - 1])
             K.append(message)
             K.append(z1)
             K.append(z2)
-            c = H1(str(K).encode())
+            c = LWW.h1(str(K).encode(), q)
 
         # Part 2
         if signature[0] == c:
@@ -188,29 +166,43 @@ class LWW(AbstractRingSignatureScheme):
             return False
 
 
+def generatorDummie(n):
+    """
+    eine unserer Test-Methoden
+    erstellt mal eine Liste mit public Keys und gibt uns einen (zufaellig ausgewaehlten) zugehoerigen privat key als eigenen privat-Key zurueck
+    :param n: Number of Users n
+    :return:
+    """
+    listKeys = []
+    for i in range(n):
+        b = LWW.keygen(13, 2)
+        listKeys.append(b)
 
-# main-Methode, damit wir mal alles testen können
+    keys = []
+    for i in range(len(listKeys)):
+        keys.append((listKeys[i][0], listKeys[i][2], listKeys[i][3]))
+
+    userIndex = randint(0, n - 1)
+    user = listKeys[userIndex]
+
+    return keys, user[1], userIndex
+
+
+# main-Methode, damit wir mal alles testen koennen
 def main():
-    # Beispielswerte für g und n
-    g = randint(1, q - 1)  # ist q Prim, so ist jede Zahl 0<g<q ein Generator
-    n = 10
-
     # Erzeugt mal einige Keys zum Test
-    keys = generatorDummie()
-    print(keys)
-    L = keys[0]
-    privKeyUser = keys[1]
-    message = "Hallo"
-    # Check which user we are
-    userIndex = checkWhichUser(privKeyUser, keys)
+    publicKeys, privateKey, userIndex = generatorDummie(4)
+    print(publicKeys)
+    print(privateKey)
     print(userIndex)
 
-    # Sign-Test
-    testsig = ringsign(privKeyUser, L, message)
+    message = "Hallo"
+    # sign-Test
+    testsig = LWW.ringsign(privateKey, publicKeys, message)
     print(testsig)
 
     # Verify-Test
-    check = verify(L, message, testsig)
+    check = LWW.verify(publicKeys, message, testsig)
     print(check)
 
 
