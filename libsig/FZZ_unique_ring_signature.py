@@ -2,8 +2,8 @@ import sys
 import math
 from random import randint
 import hashlib
-from AbstractRingSignatureScheme import AbstractRingSignatureScheme
-#from libsig import primes
+from libsig.AbstractRingSignatureScheme import AbstractRingSignatureScheme
+from libsig import primes
 
 
 # ----------- HELPER FUNCTIONS ----------- 
