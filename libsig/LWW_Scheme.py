@@ -4,6 +4,8 @@ from random import randint
 # from libsig.primes import *
 from libsig.AbstractRingSignatureScheme import AbstractRingSignatureScheme
 
+
+# noinspection PyPep8Naming
 class LWW(AbstractRingSignatureScheme):
     """Some Docu"""
 
@@ -35,35 +37,35 @@ class LWW(AbstractRingSignatureScheme):
         return z
 
     @staticmethod
-    def __verifyQandG(pubKeys):
+    def __verifyQandG(completepublicKeys):
         """
-        Verifies that all pubKeys have the same q and g and returns them
-        :param pubKeys: List of Public Keys with q and g (y, q, g)
-        :return: (q,g) if all are the same
+        Verifies that all publicKeys have the same q and g and returns them
+        :param completepublicKeys: List of Public Keys with q and g (y, q, g)
+        :return: (publicKeys,q,g) if all q and g are the same, else a error is raised. publicKeys = only public keys without q and g
         """
-        q = pubKeys[0][1]
-        g = pubKeys[0][2]
-        for completePubKey in pubKeys:
+        q = completepublicKeys[0][1]
+        g = completepublicKeys[0][2]
+        publicKeys = []
+        for completePubKey in completepublicKeys:
             if q != completePubKey[1]:
                 raise ValueError("A q is not equal to the others, check your keys")
             if g != completePubKey[2]:
                 raise ValueError("A g is not equal to the others, check your keys")
+            publicKeys.append(completePubKey[0])
 
-        return q, g
+        return publicKeys, q, g
 
     @staticmethod
-    def __checkWhichUser(privUser, pubKeys):
+    def __checkWhichUser(privateKeyUser, publicKeys, q, g):
         """
-        Methode bekommt einen priv. Key und eine Liste von public Keys (y,q,g) und gibt dann die Position des eigenen public keys zurueck
-        :param pubKeys:
+        Methode bekommt einen priv. Key und eine Liste von public Keys  und gibt dann die Position des eigenen public keys zurueck
+        :param publicKeys:
         :return:
         """
         userIndex = 0
-        q = pubKeys[0][1]
-        g = pubKeys[0][2]
-        tmp = pow(g, privUser, q)
-        for i in range(len(pubKeys)):
-            if tmp == pubKeys[i][0]:
+        tmp = pow(g, privateKeyUser, q)
+        for i in range(len(publicKeys)):
+            if tmp == publicKeys[i]:
                 userIndex = i
                 break
         return userIndex
@@ -88,81 +90,80 @@ class LWW(AbstractRingSignatureScheme):
 
     # sign-Methode fuer Ringsignatur
     @staticmethod
-    def ringsign(privKeyUser, pubKeys, message):
-        q, g = LWW.__verifyQandG(pubKeys)
+    def ringsign(privateKeyUser, completePublicKeys, message):
+        publicKeys, q, g = LWW.__verifyQandG(completePublicKeys)
+        publicKeysLength = len(publicKeys)
         # Check which user we are
-        userIndex = LWW.__checkWhichUser(privKeyUser, pubKeys)
+        userIndex = LWW.__checkWhichUser(privateKeyUser, publicKeys, q, g)
 
         # Part 1
-        h = LWW.h2(str(pubKeys).encode(), q)
-        ytilde = pow(h, privKeyUser, q)
+        h = LWW.h2(str(publicKeys).encode(), q)
+        ytilde = pow(h, privateKeyUser, q)
 
         # Part 2
         # Hier werden alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
-        u = randint(1, q - 1)
-        K = []
-        K.append(pubKeys)
-        K.append(ytilde)
-        K.append(message)
-        K.append(pow(g, u, q))
-        K.append(pow(h, u, q))
-        c = LWW.h1(str(K).encode(), q)
+        u = randint(1, q)
+        K = [publicKeys, ytilde, message, pow(g, u, q), pow(h, u, q)]
+        ci = LWW.h1(str(K).encode(), q)
 
         # Part 3
         # hier wird c immer mit dem neuen c-Wert ueberschrieben, da der vorherige nicht mehr benoetigt wird
         c1 = 0
-        s = [0 for i in range(len(pubKeys))]
-        for i in range(1, len(pubKeys)):
-            j = (i + userIndex) % len(pubKeys)
-            if j == 1:
-                c1 = c
-            si = randint(1, q - 1)
-            s[j - 1] = si
+        s = [0] * publicKeysLength
+        for j in range(1, publicKeysLength):
+            i = (j + userIndex) % publicKeysLength
+
+            si = randint(1, q)
+            s[j] = si
+
+            z1 = pow(g, si, q) * pow(publicKeys[i], ci, q)
+            z2 = pow(h, si, q) * pow(ytilde, ci, q)
 
             # Hier werden wieder alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
-            K = []
-            K.append(pubKeys)
-            K.append(ytilde)
-            K.append(message)
-            K.append(pow(g, si, q) * pow(pubKeys[j][0], c, q))
-            K.append(pow(h, si, q) * pow(ytilde, c, q))
-            c = LWW.h1(str(K).encode(), q)
+            K = [publicKeys, ytilde, message, z1, z2]
+            ci = LWW.h1(str(K).encode(), q)
+            if j == 0:
+                c1 = ci #To Save c1 (Index 0)
 
-            # Part 4
-        s[userIndex - 1] = (u - c * privKeyUser) % q
+            print(str(i)+ ": s=" + str(si) + " - c= " + str(ci))
+
+        # Part 4
+        s[userIndex] = (u - privateKeyUser * ci) % q
+        print(str(userIndex) + ": s=" + str(s[userIndex]) + " - c= " + str(ci))
 
         # Finish
-        sig = []
-        sig.append(c1)
-        sig.append(s)
-        sig.append(ytilde)
+        sig = [c1, s, ytilde]
 
         return sig
 
     # Methode zum Pruefen, ob eine signatur bei gegebenen public Keys korrekt erzeugt wurde
     @staticmethod
-    def verify(pubKeys, message, signature):
-        q, g = LWW.__verifyQandG(pubKeys)
+    def verify(completePublicKeys, message, signature):
+        publicKeys, q, g = LWW.__verifyQandG(completePublicKeys)
+        publicKeysLength = len(publicKeys)
+
+        c1 = signature[0]
+        singleSignatures = signature[1]
+        ytilde = signature[2]
+
+        if publicKeysLength != len(signature[1]):
+            raise ValueError("The length of the public Keys does not match to the length of signatures/ secrets")
 
         # Part 1
-        c = signature[0]
-        h = LWW.h2(str(pubKeys).encode(), q)
+        c = c1
+        h = LWW.h2(str(publicKeys).encode(), q)
 
-        for i in range(1, len(pubKeys)+1):
-            z1 = pow(g, signature[1][i-1], q) * pow(pubKeys[i - 1][0], c, q)
-            z2 = pow(h, signature[1][i-1], q) * pow(signature[len(signature) - 1], c, q)
+        for i in range(0, publicKeysLength):
+            z1 = pow(g, singleSignatures[i], q) * pow(publicKeys[i], c, q)
+            z2 = pow(h, singleSignatures[i], q) * pow(ytilde, c, q)
 
             # Hier werden wieder alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
-            K = []
-            K.append(pubKeys)
-            K.append(signature[len(signature) - 1])
-            K.append(message)
-            K.append(z1)
-            K.append(z2)
+            K = [publicKeys, ytilde, message, z1, z2]
             c = LWW.h1(str(K).encode(), q)
+            print(str(i) + ": s=" + str(singleSignatures[i]) + " - c= " + str(c))
 
         # Part 2
-        if signature[0] == c:
+        if c1 == c:
             return True
         else:
             return False
@@ -194,18 +195,19 @@ def generatorDummie(n):
 def main():
     # Erzeugt mal einige Keys zum Test
     publicKeys, privateKey, userIndex = generatorDummie(4)
-    print(publicKeys)
-    print(privateKey)
-    print(userIndex)
+    print("CompletePublicKeys= " + str(publicKeys))
+    print("PrivateKeyUser= " + str(privateKey))
+    print("UserIndex= " + str(userIndex))
 
     message = "Hallo"
+    print("Message= " + str(message))
     # sign-Test
     testsig = LWW.ringsign(privateKey, publicKeys, message)
-    print(testsig)
+    print("TestSig=" + str(testsig))
 
     # Verify-Test
     check = LWW.verify(publicKeys, message, testsig)
-    print(check)
+    print("VerifyResult= " + str(check))
 
 
 if __name__ == "__main__":
