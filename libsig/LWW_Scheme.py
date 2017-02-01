@@ -1,9 +1,8 @@
 import hashlib
 import sys
 from random import randint
-from libsig.primes import *
+# from libsig.primes import *
 from libsig.AbstractRingSignatureScheme import AbstractRingSignatureScheme
-
 
 class LWW(AbstractRingSignatureScheme):
     """Some Docu"""
@@ -78,8 +77,8 @@ class LWW(AbstractRingSignatureScheme):
         :param g: Generator of Group G with the prime order q
         :return: [y=public, x=private, q=Order, g=Generator]
         """
-        if q == 0:
-            q = safe_prime_1024_1
+        #if q == 0:
+         #   q = safe_prime_1024_1
         if g == 0:
             g = randint(1, q)
 
@@ -101,7 +100,8 @@ class LWW(AbstractRingSignatureScheme):
         # Part 2
         # Hier werden alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
         u = randint(1, q - 1)
-        K = pubKeys
+        K = []
+        K.append(pubKeys)
         K.append(ytilde)
         K.append(message)
         K.append(pow(g, u, q))
@@ -111,7 +111,7 @@ class LWW(AbstractRingSignatureScheme):
         # Part 3
         # hier wird c immer mit dem neuen c-Wert ueberschrieben, da der vorherige nicht mehr benoetigt wird
         c1 = 0
-        s = range(len(pubKeys))
+        s = [0 for i in range(len(pubKeys))]
         for i in range(1, len(pubKeys)):
             j = (i + userIndex) % len(pubKeys)
             if j == 1:
@@ -120,10 +120,11 @@ class LWW(AbstractRingSignatureScheme):
             s[j - 1] = si
 
             # Hier werden wieder alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
-            K = pubKeys
+            K = []
+            K.append(pubKeys)
             K.append(ytilde)
             K.append(message)
-            K.append(pow(g, si, q) * pow(pubKeys[j], c, q))
+            K.append(pow(g, si, q) * pow(pubKeys[j][0], c, q))
             K.append(pow(h, si, q) * pow(ytilde, c, q))
             c = LWW.h1(str(K).encode(), q)
 
@@ -147,12 +148,13 @@ class LWW(AbstractRingSignatureScheme):
         c = signature[0]
         h = LWW.h2(str(pubKeys).encode(), q)
 
-        for i in range(1, len(pubKeys) + 1):
-            z1 = pow(g, signature[i], q) * pow(pubKeys[i - 1], c, q)
-            z2 = pow(h, signature[i], q) * pow(signature[len(signature) - 1], c, q)
+        for i in range(1, len(pubKeys)+1):
+            z1 = pow(g, signature[1][i-1], q) * pow(pubKeys[i - 1][0], c, q)
+            z2 = pow(h, signature[1][i-1], q) * pow(signature[len(signature) - 1], c, q)
 
             # Hier werden wieder alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
-            K = pubKeys
+            K = []
+            K.append(pubKeys)
             K.append(signature[len(signature) - 1])
             K.append(message)
             K.append(z1)
