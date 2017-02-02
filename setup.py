@@ -26,8 +26,7 @@ setup(
     # url='',
     # license='',
     author='PETS2016w Course',
-    install_requires=['gmpy', # this is old, y'know?
-                      'gmpy2',
+    install_requires=[ 'gmpy2',
                     # 'more stuff',
                     ],
     #author_email='henning.kopp@uni-ulm.de',
