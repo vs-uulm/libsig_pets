@@ -97,3 +97,6 @@ ENV/
 .idea
 
 # End of https://www.gitignore.io/api/python
+
+# IntelliJ Project settings
+*.iml
