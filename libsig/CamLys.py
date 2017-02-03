@@ -32,7 +32,7 @@ class BasicCamLysParams:
         q = gen_prime(size, extra_check=is_safe_prime)
         return cls(p, q)
 
-    def __init__(self, p, q, l=160):
+    def __init__(self, p, q, hash_function=sha256):
         if not gm.is_prime(p//2):
             raise ValueError("primes must be safe and p is not, invalid parameters")
 
@@ -46,11 +46,14 @@ class BasicCamLysParams:
         self._q = q
         self._n = p*q
 
+        self._hash_function = hash_function
+
         self._a = self._gen_quad_residue()
         self._b = self._gen_quad_residue()
         self._c = self._gen_quad_residue()
 
-        self._l = l
+        # security parameter seems to be bound to hash bit length
+        self._l = self._hash_function().digest_size * 8
 
     def _gen_quad_residue(self):
         return gm.powmod(mpz(secrets.randbits(self.bits)), 2, self.modulus)
@@ -126,6 +129,7 @@ class BasicCamLys(AbstractSignatureScheme):
     """this just binds the real deal to the unfit interface o_0
 
     it is capable of signing one hashed message.
+
     >>> bcl = BasicCamLys.keygen()
     >>> message = str.encode("Star wars is awesome")
     >>> signature = BasicCamLys.sign(bcl, message)
