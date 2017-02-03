@@ -58,7 +58,9 @@ def _prime_seed_generator(bit_count, secret_prime=True):
 
 
 def is_safe_prime(prime):
-    """for "safe prime" generation, check that (p-1)/2 is prime.
+    """
+    A prime number p is called *safe* if :math:`p = 2p' + 1`, such that :math:`p'` is also a prime number.
+
     Since a prime is odd, We just need to divide by 2
     """
     return is_strong_bpsw_prp(prime//2)
