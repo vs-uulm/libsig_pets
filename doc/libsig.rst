@@ -20,6 +20,30 @@ libsig.AbstractSignatureScheme module
     :undoc-members:
     :show-inheritance:
 
+libsig.CamLys module
+--------------------
+
+.. automodule:: libsig.CamLys
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+libsig.FZZ_unique_ring_signature module
+---------------------------------------
+
+.. automodule:: libsig.FZZ_unique_ring_signature
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+libsig.LWW_Scheme module
+------------------------
+
+.. automodule:: libsig.LWW_Scheme
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 libsig.RSAsig module
 --------------------
 
@@ -28,11 +52,26 @@ libsig.RSAsig module
     :undoc-members:
     :show-inheritance:
 
+libsig.RenHarn module
+---------------------
 
-libsig.CamLys module
+.. automodule:: libsig.RenHarn
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+libsig.primes module
 --------------------
 
-.. automodule:: libsig.CamLys
+.. automodule:: libsig.primes
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+libsig.secrets module
+---------------------
+
+.. automodule:: libsig.secrets
     :members:
     :undoc-members:
     :show-inheritance:
