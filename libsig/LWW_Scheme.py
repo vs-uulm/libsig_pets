@@ -1,7 +1,9 @@
-import hashlib
 import sys
+import hashlib
+if sys.version_info < (3, 6):
+    import sha3
 from random import randint
-# from libsig.primes import *
+from libsig.primes import *
 from libsig.AbstractRingSignatureScheme import AbstractRingSignatureScheme
 
 
@@ -32,7 +34,7 @@ class LWW(AbstractRingSignatureScheme):
         :param x:
         :return:
         """
-        y = int(hashlib.sha512(x).hexdigest(), 16)
+        y = int(hashlib.sha3_512(x).hexdigest(), 16)
         z = y % q
         return z
 
@@ -79,10 +81,10 @@ class LWW(AbstractRingSignatureScheme):
         :param g: Generator of Group G with the prime order q
         :return: [y=public, x=private, q=Order, g=Generator]
         """
-        #if q == 0:
-         #   q = safe_prime_1024_1
+        if q == 0:
+            q = safe_prime_1024_1
         if g == 0:
-            g = randint(1, q)
+            g = randint(2, q - 1)
 
         x = randint(1, q - 1)
         y = pow(g, x, q)
@@ -91,6 +93,7 @@ class LWW(AbstractRingSignatureScheme):
     # sign-Methode fuer Ringsignatur
     @staticmethod
     def ringsign(privateKeyUser, completePublicKeys, message):
+        print("----- Sign -----")
         publicKeys, q, g = LWW.__verifyQandG(completePublicKeys)
         publicKeysLength = len(publicKeys)
         # Check which user we are
@@ -98,34 +101,43 @@ class LWW(AbstractRingSignatureScheme):
 
         # Part 1
         h = LWW.h2(str(publicKeys).encode(), q)
+        print("H = " + str(h))
         ytilde = pow(h, privateKeyUser, q)
-
+        print("YTilde = " + str(ytilde))
         # Part 2
         # Hier werden alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
-        u = randint(1, q)
+        u = randint(1, q - 1)
+        print("U = " + str(u))
         K = [publicKeys, ytilde, message, pow(g, u, q), pow(h, u, q)]
+        print("K:" + str(K))
+        print(str(K).encode())
+        print(''.join('{:02x}'.format(x) for x in str(K).encode()))
         ci = LWW.h1(str(K).encode(), q)
+        c1 = ci
 
         # Part 3
         # hier wird c immer mit dem neuen c-Wert ueberschrieben, da der vorherige nicht mehr benoetigt wird
-        c1 = 0
-        s = [0] * publicKeysLength
+        #c1 = 0
+        s = [None] * publicKeysLength
+        c = [None] * publicKeysLength
         for j in range(1, publicKeysLength):
             i = (j + userIndex) % publicKeysLength
 
-            si = randint(1, q)
-            s[j] = si
+            si = randint(1, q - 1)
+            s[i] = si
 
-            z1 = pow(g, si, q) * pow(publicKeys[i], ci, q)
-            z2 = pow(h, si, q) * pow(ytilde, ci, q)
+            z1 = (pow(g, si, q) * pow(publicKeys[i], ci, q)) % q
+            z2 = (pow(h, si, q) * pow(ytilde, ci, q)) % q
 
             # Hier werden wieder alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
             K = [publicKeys, ytilde, message, z1, z2]
+            print("K:" + str(K))
+
             ci = LWW.h1(str(K).encode(), q)
-            if j == 0:
+            if i == 0:
                 c1 = ci #To Save c1 (Index 0)
 
-            print(str(i)+ ": s=" + str(si) + " - c= " + str(ci))
+            print(str(i) + ": s=" + str(si) + " - c= " + str(ci))
 
         # Part 4
         s[userIndex] = (u - privateKeyUser * ci) % q
@@ -139,6 +151,8 @@ class LWW(AbstractRingSignatureScheme):
     # Methode zum Pruefen, ob eine signatur bei gegebenen public Keys korrekt erzeugt wurde
     @staticmethod
     def verify(completePublicKeys, message, signature):
+        print("----- Verify -----")
+
         publicKeys, q, g = LWW.__verifyQandG(completePublicKeys)
         publicKeysLength = len(publicKeys)
 
@@ -149,16 +163,21 @@ class LWW(AbstractRingSignatureScheme):
         if publicKeysLength != len(signature[1]):
             raise ValueError("The length of the public Keys does not match to the length of signatures/ secrets")
 
+        print(str(publicKeys).encode())
         # Part 1
         c = c1
         h = LWW.h2(str(publicKeys).encode(), q)
 
-        for i in range(0, publicKeysLength):
-            z1 = pow(g, singleSignatures[i], q) * pow(publicKeys[i], c, q)
-            z2 = pow(h, singleSignatures[i], q) * pow(ytilde, c, q)
-
+        for j in range(0, publicKeysLength):
+            i = (j+1) % publicKeysLength
+            z1 = (pow(g, singleSignatures[i], q) * pow(publicKeys[i], c, q)) % q
+            z2 = (pow(h, singleSignatures[i], q) * pow(ytilde, c, q)) % q
+            print("Z1: " + str(g) + "^" + str(singleSignatures[i]) + " * " + str(publicKeys[i]) + "^" + str(c))
+            print("Z2: " + str(h) + "^" + str(singleSignatures[i]) + " * " + str(ytilde) + "^" + str(c))
             # Hier werden wieder alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
             K = [publicKeys, ytilde, message, z1, z2]
+            print("K:" + str(K))
+
             c = LWW.h1(str(K).encode(), q)
             print(str(i) + ": s=" + str(singleSignatures[i]) + " - c= " + str(c))
 
@@ -176,9 +195,10 @@ def generatorDummie(n):
     :param n: Number of Users n
     :return:
     """
+    # return [(12, 13, 2), (2, 13, 2)], 1, 1
     listKeys = []
     for i in range(n):
-        b = LWW.keygen(13, 2)
+        b = LWW.keygen(13, 8)
         listKeys.append(b)
 
     keys = []
