@@ -10,18 +10,6 @@ from libsig.AbstractRingSignatureScheme import AbstractRingSignatureScheme
 class RenHarn(AbstractRingSignatureScheme):
     """
     Implements the "Ring Signature Based on ElGamal Signature" by Jian Ren and Lein Harn
-
-    >>> (e, d) = RenHarn.keygen(512)
-    >>> privkeys = [d]
-    >>> pubkeys = [e]
-    >>> for _ in range(15):
-    >>>     (e, d) = RenHarn.keygen(512, pubkeys[0][1], pubkeys[0][2])
-    >>>     privkeys.append(d)
-    >>>     pubkeys.append(e)
-    >>> message = str.encode("Star wars is awesome")
-    >>> sig = RenHarn.ringsign(privkeys[0], pubkeys, message)
-    >>> RenHarn.verify(pubkeys, message, sig)
-    True
     """
     @staticmethod
     def keygen(size=1024, g=None, p=None):
