@@ -2,6 +2,7 @@ import sys
 import math
 from random import randint
 import hashlib
+import doctest
 from libsig.AbstractRingSignatureScheme import AbstractRingSignatureScheme
 #from AbstractRingSignatureScheme import AbstractRingSignatureScheme
 #from libsig import primes
@@ -11,6 +12,17 @@ from libsig.AbstractRingSignatureScheme import AbstractRingSignatureScheme
 
 # function to find divisors in order to find generators
 def find_divisors(x):
+    """
+    This is the "function to find divisors in order to find generators" module.
+    This DocTest verifies that the module is correctly calculating all divisors
+    of a number x.
+    
+    >>> find_divisors(10)
+    [1, 2, 5, 10]
+
+    >>> find_divisors(112)
+    [1, 2, 4, 7, 8, 14, 16, 28, 56, 112]
+    """
     divisors = []
     for i in range(1, x + 1):
         if x % i == 0:
@@ -256,6 +268,8 @@ class UniqueRingSignature(AbstractRingSignatureScheme):
 
 
 if __name__ == '__main__':
+    # doctest start
+    doctest.testmod()
     # user 1 will signate and validate later,
     # therefore his private key is saved for test purposes
     privKey1,pubkey = UniqueRingSignature.keygen()
