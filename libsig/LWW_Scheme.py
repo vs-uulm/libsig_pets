@@ -1,7 +1,5 @@
 import sys
 import hashlib
-if sys.version_info < (3, 6):
-    import sha3
 from random import randint
 from libsig.primes import *
 from libsig.AbstractRingSignatureScheme import AbstractRingSignatureScheme
@@ -9,16 +7,21 @@ from libsig.AbstractRingSignatureScheme import AbstractRingSignatureScheme
 
 # noinspection PyPep8Naming
 class LWW(AbstractRingSignatureScheme):
-    """Some Docu"""
+    """
+    Implementation of a RingSign Algorithm
+    Name: "Linkable Spontaneous Anonymous Group Signature for Ad Hoc Groups"
+    From: Joseph K. Liu, Victor K. Wei, and Duncan S. Wong
+    By: Jan Klumpp, Nicola Fröhlich, Wolf Michael
+    """
 
     @staticmethod
     def h1(x, q):
         """
-        Hash Funktion 1
-        bekommt einen x-Wert und berechnet einen Sha2-512 Bit Wert daraus (im Modul zu q)
-        :param q:
-        :param x:
-        :return:
+        Hash Function 1 where {0,1}* -> Zq
+        Uses Sha512
+        :param q: Order of group G
+        :param x: Value to Hash
+        :return: Hashed Value with modulo q
         """
         y = int(hashlib.sha512(x).hexdigest(), 16)
         z = y % q
@@ -27,28 +30,73 @@ class LWW(AbstractRingSignatureScheme):
     @staticmethod
     def h2(x, q):
         """
-        Hash-Funktion 2
-        bekommt einen x-Wert und berechnet einen Sha3-512 Bit Wert daraus (im Modul zu q)
-        laut Henning ist der dann automatisch in G
-        :param q:
-        :param x:
-        :return:
+        Hash Function 2 where {0,1}* -> G and statistically independent of H1
+        Uses Sha256
+        :param q: Order of group G
+        :param x: Value to Hash
+        :return: Hashed Value with modulo q
         """
-        y = int(hashlib.sha3_512(x).hexdigest(), 16)
+        y = int(hashlib.sha256(x).hexdigest(), 16)
         z = y % q
         return z
 
     @staticmethod
-    def __verifyQandG(completepublicKeys):
+    def __get_divisors(value):
+        """
+        Function to get the divisors of given value
+        (Copied from FZZ with approval of the authors)
+        :param value: A natural number
+        :return: A List of Divisors
+        """
+        divisors = []
+        for i in range(1, value + 1):
+            if value % i == 0:
+                divisors.append(i)
+        return divisors
+
+    @staticmethod
+    def get_generator(primeNumber):
+        """
+        Function to get a random Generator g of given prime Number p
+        (Copied from FZZ with approval of the authors)
+        :param primeNumber: A prime Number
+        :return: A random generator
+        """
+        testGen = randint(1, primeNumber)
+        listTested = [testGen]
+        # Step 1.
+        divisors = LWW.__get_divisors(primeNumber)
+
+        # try for all random numbers
+        # Caution: this leads to a truly random generator but is not very efficient.
+        while len(listTested) < primeNumber - 1:
+            # only test each possible generator once
+            if testGen in listTested:
+                # Step 2.
+                for div in divisors:
+                    testPotency = pow(testGen, div) % (primeNumber + 1)
+                    if testPotency == 1.0 and div != divisors[-1]:
+                        # element does not have the same order like the group,
+                        # therefore try next element
+                        break
+                    elif testPotency == 1.0 and div == divisors[-1]:
+                        # generator is found
+                        return testGen
+            # try new element
+            testGen = randint(1, primeNumber)
+            listTested.append(testGen)
+
+    @staticmethod
+    def __verifyQandG(completePublicKeys):
         """
         Verifies that all publicKeys have the same q and g and returns them
-        :param completepublicKeys: List of Public Keys with q and g (y, q, g)
+        :param completePublicKeys: List of Public Keys with q and g (y, q, g)
         :return: (publicKeys,q,g) if all q and g are the same, else a error is raised. publicKeys = only public keys without q and g
         """
-        q = completepublicKeys[0][1]
-        g = completepublicKeys[0][2]
+        q = completePublicKeys[0][1]
+        g = completePublicKeys[0][2]
         publicKeys = []
-        for completePubKey in completepublicKeys:
+        for completePubKey in completePublicKeys:
             if q != completePubKey[1]:
                 raise ValueError("A q is not equal to the others, check your keys")
             if g != completePubKey[2]:
@@ -62,7 +110,7 @@ class LWW(AbstractRingSignatureScheme):
         """
         Methode bekommt einen priv. Key und eine Liste von public Keys  und gibt dann die Position des eigenen public keys zurueck
         :param publicKeys:
-        :return:
+        :return: The
         """
         userIndex = 0
         tmp = pow(g, privateKeyUser, q)
@@ -72,11 +120,13 @@ class LWW(AbstractRingSignatureScheme):
                 break
         return userIndex
 
-    # ------ Anfang -----
+    # ------ Begin Implementation of AbstractRingSignatureScheme -----
+
     @staticmethod
     def keygen(q=0, g=0):
         """
         Creates Private and Public key of optional given q and g
+        If no arguments are given, default values will be used
         :param q: Order of group G
         :param g: Generator of Group G with the prime order q
         :return: [y=public, x=private, q=Order, g=Generator]
@@ -84,73 +134,79 @@ class LWW(AbstractRingSignatureScheme):
         if q == 0:
             q = safe_prime_1024_1
         if g == 0:
-            g = randint(2, q - 1)
+            g = 2
 
         x = randint(1, q - 1)
         y = pow(g, x, q)
         return [y, x, q, g]
 
-    # sign-Methode fuer Ringsignatur
     @staticmethod
     def ringsign(privateKeyUser, completePublicKeys, message):
+        """
+        Signs the message with the given privateKey of the user and the public keys
+        Is using the algorithm of "Linkable Spontaneous Anonymous Group Signature for Ad Hoc Groups"
+        :param privateKeyUser: The private Key of the User
+        :param completePublicKeys:  A List of Public Keys with the form [y=public, x=private, q=Order, g=Generator]
+        :param message: Just a random message
+        :return: The signature in the form of [C1, [S1, ..., Sn], y~]
+        """
         print("----- Sign -----")
         publicKeys, q, g = LWW.__verifyQandG(completePublicKeys)
         publicKeysLength = len(publicKeys)
-        # Check which user we are
-        userIndex = LWW.__checkWhichUser(privateKeyUser, publicKeys, q, g)
+        userIndex = publicKeys.index(pow(g, privateKeyUser, q))
 
         # Part 1
-        h = LWW.h2(str(publicKeys).encode(), q)
-        print("H = " + str(h))
-        ytilde = pow(h, privateKeyUser, q)
-        print("YTilde = " + str(ytilde))
+        h = LWW.h2(repr(publicKeys).encode(), q)
+        y_Tilde = pow(h, privateKeyUser, q)
+
         # Part 2
-        # Hier werden alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
         u = randint(1, q - 1)
+        K = [publicKeys, y_Tilde, message, pow(g, u, q), pow(h, u, q)]
+
+        print("H = " + str(h))
+        print("y_Tilde = " + str(y_Tilde))
         print("U = " + str(u))
-        K = [publicKeys, ytilde, message, pow(g, u, q), pow(h, u, q)]
         print("K:" + str(K))
-        print(str(K).encode())
-        print(''.join('{:02x}'.format(x) for x in str(K).encode()))
-        ci = LWW.h1(str(K).encode(), q)
-        c1 = ci
 
         # Part 3
-        # hier wird c immer mit dem neuen c-Wert ueberschrieben, da der vorherige nicht mehr benoetigt wird
-        #c1 = 0
-        s = [None] * publicKeysLength
-        c = [None] * publicKeysLength
-        for j in range(1, publicKeysLength):
-            i = (j + userIndex) % publicKeysLength
-
+        s = [-1] * publicKeysLength
+        c = [-1] * publicKeysLength
+        i = (userIndex + 1) % publicKeysLength
+        c[i] = LWW.h1(repr(K).encode(), q)
+        while i != userIndex:
             si = randint(1, q - 1)
             s[i] = si
 
-            z1 = (pow(g, si, q) * pow(publicKeys[i], ci, q)) % q
-            z2 = (pow(h, si, q) * pow(ytilde, ci, q)) % q
+            z1 = (pow(g, si, q) * pow(publicKeys[i], c[i], q)) % q
+            z2 = (pow(h, si, q) * pow(y_Tilde, c[i], q)) % q
+            K = [publicKeys, y_Tilde, message, z1, z2]
+            i = (i + 1) % publicKeysLength
+            c[i] = LWW.h1(repr(K).encode(), q)
 
-            # Hier werden wieder alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
-            K = [publicKeys, ytilde, message, z1, z2]
             print("K:" + str(K))
-
-            ci = LWW.h1(str(K).encode(), q)
-            if i == 0:
-                c1 = ci #To Save c1 (Index 0)
-
-            print(str(i) + ": s=" + str(si) + " - c= " + str(ci))
+            print(str(i) + ": s=" + str(s[i]) + " - c= " + str(c[i]))
 
         # Part 4
-        s[userIndex] = (u - privateKeyUser * ci) % q
-        print(str(userIndex) + ": s=" + str(s[userIndex]) + " - c= " + str(ci))
+        s[userIndex] = (u - privateKeyUser * c[userIndex]) % q
+
+        print(str(userIndex) + ": s=" + str(s[userIndex]) + " - c= " + str(c[userIndex]))
+        print("C = " + str(c))
+        print("S = " + str(s))
 
         # Finish
-        sig = [c1, s, ytilde]
+        sig = [c[0], s, y_Tilde]
 
         return sig
 
-    # Methode zum Pruefen, ob eine signatur bei gegebenen public Keys korrekt erzeugt wurde
     @staticmethod
     def verify(completePublicKeys, message, signature):
+        """
+        Verifies that the given message is signed by one of the public key users
+        :param completePublicKeys:  A List of Public Keys with the form [y=public, x=private, q=Order, g=Generator]
+        :param message: Just a random message
+        :param signature: The signature in the form of [C1, [S1, ..., Sn], y~]
+        :return: 'True' if accepted, 'False' if not
+        """
         print("----- Verify -----")
 
         publicKeys, q, g = LWW.__verifyQandG(completePublicKeys)
@@ -158,34 +214,35 @@ class LWW(AbstractRingSignatureScheme):
 
         c1 = signature[0]
         singleSignatures = signature[1]
-        ytilde = signature[2]
+        y_Tilde = signature[2]
 
         if publicKeysLength != len(signature[1]):
             raise ValueError("The length of the public Keys does not match to the length of signatures/ secrets")
 
-        print(str(publicKeys).encode())
+        print(repr(publicKeys).encode())
         # Part 1
-        c = c1
-        h = LWW.h2(str(publicKeys).encode(), q)
+        c_i = c1
+        h = LWW.h2(repr(publicKeys).encode(), q)
 
-        for j in range(0, publicKeysLength):
-            i = (j+1) % publicKeysLength
-            z1 = (pow(g, singleSignatures[i], q) * pow(publicKeys[i], c, q)) % q
-            z2 = (pow(h, singleSignatures[i], q) * pow(ytilde, c, q)) % q
-            print("Z1: " + str(g) + "^" + str(singleSignatures[i]) + " * " + str(publicKeys[i]) + "^" + str(c))
-            print("Z2: " + str(h) + "^" + str(singleSignatures[i]) + " * " + str(ytilde) + "^" + str(c))
-            # Hier werden wieder alle benoetigten Teile zu einer Liste zusammengefuegt, die dann gehashed unser neues c ergeben
-            K = [publicKeys, ytilde, message, z1, z2]
+        for i in range(0, publicKeysLength):
+            # i = (j+1) % publicKeysLength
+            z1 = (pow(g, singleSignatures[i], q) * pow(publicKeys[i], c_i, q)) % q
+            z2 = (pow(h, singleSignatures[i], q) * pow(y_Tilde, c_i, q)) % q
+            K = [publicKeys, y_Tilde, message, z1, z2]
+            c_i = LWW.h1(repr(K).encode(), q)
+
+            # print("Z1: " + str(g) + "^" + str(singleSignatures[i]) + " * " + str(publicKeys[i]) + "^" + str(c_i))
+            # print("Z2: " + str(h) + "^" + str(singleSignatures[i]) + " * " + str(y_Tilde) + "^" + str(c_i))
             print("K:" + str(K))
-
-            c = LWW.h1(str(K).encode(), q)
-            print(str(i) + ": s=" + str(singleSignatures[i]) + " - c= " + str(c))
+            print(str(i) + ": s=" + str(singleSignatures[i]) + " - c= " + str(c_i))
 
         # Part 2
-        if c1 == c:
+        if c1 == c_i:
             return True
         else:
             return False
+
+            # ------ End Implementation of AbstractRingSignatureScheme -----
 
 
 def generatorDummie(n):
@@ -198,7 +255,7 @@ def generatorDummie(n):
     # return [(12, 13, 2), (2, 13, 2)], 1, 1
     listKeys = []
     for i in range(n):
-        b = LWW.keygen(13, 8)
+        b = LWW.keygen(13, 2)
         listKeys.append(b)
 
     keys = []
@@ -214,7 +271,7 @@ def generatorDummie(n):
 # main-Methode, damit wir mal alles testen koennen
 def main():
     # Erzeugt mal einige Keys zum Test
-    publicKeys, privateKey, userIndex = generatorDummie(4)
+    publicKeys, privateKey, userIndex = generatorDummie(3)
     print("CompletePublicKeys= " + str(publicKeys))
     print("PrivateKeyUser= " + str(privateKey))
     print("UserIndex= " + str(userIndex))
@@ -232,4 +289,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-
