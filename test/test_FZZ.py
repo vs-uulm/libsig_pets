@@ -1,8 +1,8 @@
 """This file contains unittests for the FZZ Unique Ring Signature."""
 
 import unittest
-#from libsig.FZZ_unique_ring_signature import UniqueRingSignature
-from FZZ_unique_ring_signature import UniqueRingSignature
+from libsig.FZZ_unique_ring_signature import UniqueRingSignature
+#from FZZ_unique_ring_signature import UniqueRingSignature
 
 class TestUniqueRingSignature(unittest.TestCase):
     """We inherit from unittest.TestCase, so that nosetest can
