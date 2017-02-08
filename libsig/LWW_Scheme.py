@@ -134,7 +134,7 @@ class LWW(AbstractRingSignatureScheme):
         if q == 0:
             q = safe_prime_1024_1
         if g == 0:
-            g = 2
+            g = 123456
 
         x = randint(1, q - 1)
         y = pow(g, x, q)
@@ -187,7 +187,7 @@ class LWW(AbstractRingSignatureScheme):
             print(str(i) + ": s=" + str(s[i]) + " - c= " + str(c[i]))
 
         # Part 4
-        s[userIndex] = (u - privateKeyUser * c[userIndex]) % q
+        s[userIndex] = (u - privateKeyUser * c[userIndex]) % (q-1)
 
         print(str(userIndex) + ": s=" + str(s[userIndex]) + " - c= " + str(c[userIndex]))
         print("C = " + str(c))
@@ -242,7 +242,7 @@ class LWW(AbstractRingSignatureScheme):
         else:
             return False
 
-            # ------ End Implementation of AbstractRingSignatureScheme -----
+    # ------ End Implementation of AbstractRingSignatureScheme -----
 
 
 def generatorDummie(n):
@@ -255,7 +255,7 @@ def generatorDummie(n):
     # return [(12, 13, 2), (2, 13, 2)], 1, 1
     listKeys = []
     for i in range(n):
-        b = LWW.keygen(13, 2)
+        b = LWW.keygen()
         listKeys.append(b)
 
     keys = []
