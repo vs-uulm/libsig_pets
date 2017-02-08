@@ -2,7 +2,6 @@ import sys
 import math
 from random import randint
 import hashlib
-import doctest
 from libsig.AbstractRingSignatureScheme import AbstractRingSignatureScheme
 #from AbstractRingSignatureScheme import AbstractRingSignatureScheme
 #from libsig import primes
@@ -16,7 +15,7 @@ def find_divisors(x):
     This is the "function to find divisors in order to find generators" module.
     This DocTest verifies that the module is correctly calculating all divisors
     of a number x.
-    
+
     >>> find_divisors(10)
     [1, 2, 5, 10]
 
@@ -31,11 +30,12 @@ def find_divisors(x):
 
 # function to find random generator of G
 def find_generator(p):
-    # The order of any element in a group can be divided by p-1.
-    # Step 1: Calculate all Divisors.
-    # Step 2: Test for a random element e of G wether e to the power of a Divisor is 1.
-    #           if neither is one but e to the power of p-1, a generator is found.
-
+    '''
+    The order of any element in a group can be divided by p-1.
+    Step 1: Calculate all Divisors.
+    Step 2: Test for a random element e of G wether e to the power of a Divisor is 1.
+            if neither is one but e to the power of p-1, a generator is found.
+    '''
 
     # Init
     # Generate element which is tested for generator characteristics.
@@ -43,6 +43,7 @@ def find_generator(p):
     testGen = randint(1,p)
     listTested = []
     listTested.append(testGen)
+
     # Step 1.
     divisors = find_divisors(p)
 
@@ -66,6 +67,10 @@ def find_generator(p):
         listTested.append(testGen)
 
 def list_to_string(input_list):
+    '''
+    convert a list into a concatenated string of all its elements
+    '''
+
     result = ""
     for i in range(len(input_list)):
         result = result + str(input_list[i])
@@ -75,60 +80,65 @@ def list_to_string(input_list):
 # ----------- HELPER FUNCTIONS END ----------- 
 
 
-# output: pp = (lamdba, q, G, H, H2) with
-# q is prime
-# g is generator of G
-# G is multiplicative Group with prime order q
-# H1 and H2 are two Hash functions H1: {0,1}* -> G
-# (as well as H2: {0,1}* -> Zq which is the same).
-
-# set prime p (Sophie-Germain and therefore save)
-#q = 53
-q = 59
-# find random generator of G
-g = find_generator(q-1)
-
-# hash functions with desired range and the usage of secure hashes
-h1 = lambda x: int(hashlib.sha256(str(x).encode()).hexdigest(),16)%(q)
-# this way to share the information should be improved
-h2 = lambda x: int(hashlib.sha512(str(x).encode()).hexdigest(),16)%(q)
-
-# list of public keys
-Rp = list()
-
-
 class UniqueRingSignature(AbstractRingSignatureScheme):
+    '''
+    | output: pp = (lamdba, q, G, H, H2) with,
+    | q is prime,
+    | g is generator of G,
+    | G is multiplicative Group with prime order q,
+    | H1 and H2 are two Hash functions H1: {0,1}* -> G,
+    | (as well as H2: {0,1}* -> Zq which is the same).
+    '''
+
+    # set prime p (Sophie-Germain and therefore save)
+    #q = 53
+    q = 59
+    # find random generator of G
+    g = find_generator(q-1)
+
+    # hash functions with desired range and the usage of secure hashes
+    h1 = lambda x: int(hashlib.sha256(str(x).encode()).hexdigest(),16)%(UniqueRingSignature.q)
+    # this way to share the information should be improved
+    h2 = lambda x: int(hashlib.sha512(str(x).encode()).hexdigest(),16)%(UniqueRingSignature.q)
+
+    # list of public keys
+    Rp = list()
 
     @staticmethod
-    def keygen():
-        print("---- KeyGen Started  ---- \n")
-        r = randint(1,q)
+    def keygen(verbose=False):
+        #print("---- KeyGen Started  ---- \n")
+        r = randint(1,UniqueRingSignature.q)
         # x = g**r % q
-        x = pow(g, r,q)
+        x = pow(UniqueRingSignature.g, r,UniqueRingSignature.q)
 
         # y = g**x
-        y = pow(g, x, q)
+        y = pow(UniqueRingSignature.g, x, UniqueRingSignature.q)
 
-        print("KeyGen Config: public key y=" + str(y) + ", private key x=" + str(x) + "\n")
-        print("---- KeyGen Completed ---- \n")
+        if verbose:
+            print("KeyGen Config: public key y=" + str(y) + ", private key x=" + str(x) + "\n")
+            print("---- KeyGen Completed ---- \n")
         # Caution! I know, keygen should NOT return the private key, but this is needed to "play" through a whole signature - validation process
         return x,y
 
     @staticmethod
-    def ringsign(x, pubkey, message):
-        #print("---- RingSign Started for user " + str(usernr) + " ---- \n")
-        # input: privkey from user i, 
-        #       usernumber: usernr
-        #       all public keys: pubkeys
-        #       the message
-        # 
-        # output: (R,m, (H(mR)^xi), c1,t1,...,cn,tn)
-        #       R: all the pubkeys concatenated
-        #       cj,tj: random number within Zq
-        # 
+    def ringsign(x, pubkey, message,verbose=False):
+        '''
+        input: x is the privkey from user i, 
+              | all public keys: pubkeys,
+              | the message
+         
+        output: (R,m, (H(mR)^xi), c1,t1,...,cn,tn),
+              | R: all the pubkeys concatenated,
+              | cj,tj: random number within Zq
+        ''' 
 
         # calculate R = pk1,pk2,..,pkn
         R = list_to_string(pubkey)
+
+        g = UniqueRingSignature.g
+        q = UniqueRingSignature.q
+        h1 = UniqueRingSignature.h1
+        h2 = UniqueRingSignature.h2
 
         # message + pubkeys concatenated
         mR = message + str(R)
@@ -150,17 +160,13 @@ class UniqueRingSignature(AbstractRingSignatureScheme):
             t = 0
             if pow(g,x,q) != i:
                 c, t = randint(1,q), randint(1,q)
-                # aj = g^tj * y^cj
                 a = (pow(g, t) * pow(int(i), c)) % q
-                # bj = h(mR)^tj * (h(mR)^xi)^cj
                 b = (pow(h1(mR), t) * pow(pow(h1(mR),x),c)) % q
             else:
                 # Step 2:
                 # 
                 ri = randint(1, q)
-                # ai = g^ri
                 a = pow(g, ri, q)
-                # bi = h(mR)^ri
                 b = pow(h1(mR), ri, q)
 
                 # insert to allocate place
@@ -179,26 +185,21 @@ class UniqueRingSignature(AbstractRingSignatureScheme):
         cj = 0
 
         # list count from 0
-        # ab = {aj, bj} 1-> n
         for i in range(len(A)):
             ab = ab + str(A[i]) + str(B[i])
 
         usernr = 0
-        # sum( cj % q ) ; for all j != i
         for i in range(len(pubkey)):
             if pubkey[i] != (pow(g,x,q)):
                 cj = (cj + C[i]) % q
             else: 
                 usernr = i
 
-        # ci = h'(m,R,ab) - sum(cj % q)
         ci = h2(message + R + ab) - (cj % (q-1))
-        #ci = (h2 - cj) % self.pp['q']
 
         # update ci, this was initialized with -1
         C[usernr] = ci
 
-        # ti = ri - (ci * xi % q )
         ti = ((ri - (C[usernr]*x)) % (q-1))
         if ti < 0:
             ti = (q-1) + ti
@@ -215,14 +216,27 @@ class UniqueRingSignature(AbstractRingSignatureScheme):
 
         # returning result
         result = R + ","+message+","+str(pow(h1(mR),x, q)) + ct 
-        print("RingSign Result: "+ result)
-        print("---- RingSign Completed ---- \n")
-        return (result)
+        if verbose:
+            print("RingSign Result: "+ result)
+            print("---- RingSign Completed ---- \n")
+        return result
 
 
     @staticmethod
-    def verify(R, message, signature):
-        print("---- Validation Started ---- \n")
+    def verify(R, message, signature,verbose=False):
+        '''
+        Input: the public keys R
+        |       the message
+        |       the signature computed with ringsign
+
+        Output: whether the message was signed by R or not
+        '''
+
+        g = UniqueRingSignature.g
+        q = UniqueRingSignature.q
+        h1 = UniqueRingSignature.h1
+        h2 = UniqueRingSignature.h2
+
         # parse the signature
         parsed = signature.split(",")
         tt = int(parsed[2])
@@ -232,7 +246,8 @@ class UniqueRingSignature(AbstractRingSignatureScheme):
             cjs.append(int(parsed[3+2*i]))
             tjs.append(int(parsed[4+2*i]))
 
-        print(str(cjs)+"  "+str(tjs) + "   "+ str(tt))
+        #print(str(cjs)+"  "+str(tjs) + "   "+ str(tt))
+
         # check signature
         # sum of all cjs
         # =?
@@ -256,31 +271,42 @@ class UniqueRingSignature(AbstractRingSignatureScheme):
 
         val2 = str(h2(message + list_to_string(R) + gyh1))
         if int(val1) == int(val2):
-            print("Signature is valid!\n")
-            print("Common Result: " + str(val1))
-            print("---- Validation Completed ---- \n")
+            if verbose:
+                print("Signature is valid!\n")
+                print("Common Result: " + str(val1))
+                print("---- Validation Completed ---- \n")
             return True
         else:
-            print("Signature is not valid!\n")
-            print(str(val1) + " != " + str(val2))
-            print("---- Validation Completed ---- \n")
+            if verbose:
+                print("Signature is not valid!\n")
+                print(str(val1) + " != " + str(val2))
+                print("---- Validation Completed ---- \n")
             return False                                                              
 
-
-if __name__ == '__main__':
-    # doctest start
-    doctest.testmod()
+def local_test():
+    # verbose output
+    verbose = True
+    
     # user 1 will signate and validate later,
     # therefore his private key is saved for test purposes
-    privKey1,pubkey = UniqueRingSignature.keygen()
-    Rp.append(pubkey)
-    a,pubkey = UniqueRingSignature.keygen()
-    Rp.append(pubkey)
+    privKey1,pubkey = UniqueRingSignature.keygen(verbose)
+    UniqueRingSignature.Rp.append(pubkey)
+    a,pubkey = UniqueRingSignature.keygen(verbose)
+    UniqueRingSignature.Rp.append(pubkey)
 
 
     # usernr start from 0
     # ringsign(self, privkey, usernr, pubkeys, message)
-    ring = UniqueRingSignature.ringsign(privKey1, Rp, "asdf")
+    ring = UniqueRingSignature.ringsign(privKey1, UniqueRingSignature.Rp, "asdf", verbose)
     print("Result of Signature Validation:")
     # verify(pubkeys, message, signature):
-    UniqueRingSignature.verify(Rp, "asdf", ring)
+    UniqueRingSignature.verify(UniqueRingSignature.Rp, "asdf", ring, verbose)
+
+if __name__ == '__main__':
+    # doctest start
+    import doctest
+    doctest.testmod()
+
+    # run a local test
+    # local_test()
+    
