@@ -29,15 +29,11 @@ class TestUniqueRingSignature(unittest.TestCase):
         """
         Check that rign signature works for more than one user.
         """
-        ring = list()
         user1_priv, user1_pub = UniqueRingSignature.keygen()
-        ring.append(user1_pub)
-
         user2_priv, user2_pub = UniqueRingSignature.keygen()
-        ring.append(user2_pub)
-
         user3_priv, user3_pub = UniqueRingSignature.keygen()
-        ring.append(user3_pub)
+
+        ring = [user1_pub, user2_pub, user3_pub]
 
         message = "Star wars is awesome"
         signature = UniqueRingSignature.ringsign(user2_priv, ring, message)
@@ -45,23 +41,15 @@ class TestUniqueRingSignature(unittest.TestCase):
 
     def test_multi_sign_and_replaced_one(self):
         """
-        Check that rign signature works for more than one user.
+        Check that rign signature fails with an invalid additional verifier.
         """
-        ring = list()
-        ring2 = list()
         user1_priv, user1_pub = UniqueRingSignature.keygen()
-        ring.append(user1_pub)
-        ring2.append(user1_pub)
-
         user2_priv, user2_pub = UniqueRingSignature.keygen()
-        ring.append(user2_pub)
-        ring2.append(user2_pub)
-
         user3_priv, user3_pub = UniqueRingSignature.keygen()
-        ring.append(user3_pub)
-
         user4_priv, user4_pub = UniqueRingSignature.keygen()
-        ring2.append(user4_pub)
+
+        ring = [user1_pub, user2_pub, user3_pub]
+        ring2 = [user1_pub, user2_pub, user4_pub]
 
         message = "Star wars is awesome"
         signature = UniqueRingSignature.ringsign(user2_priv, ring, message)

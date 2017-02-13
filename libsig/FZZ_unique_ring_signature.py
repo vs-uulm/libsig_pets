@@ -22,10 +22,7 @@ def find_divisors(x):
     >>> find_divisors(112)
     [1, 2, 4, 7, 8, 14, 16, 28, 56, 112]
     """
-    divisors = []
-    for i in range(1, x + 1):
-        if x % i == 0:
-            divisors.append(i)
+    divisors = [ i for i in range(1,x+1) if x % i == 0]
     return divisors
 
 # function to find random generator of G
@@ -71,9 +68,7 @@ def list_to_string(input_list):
     convert a list into a concatenated string of all its elements
     '''
 
-    result = ""
-    for i in range(len(input_list)):
-        result = result + str(input_list[i])
+    result = ''.join(map(str,input_list))
     return result
 
 
@@ -114,7 +109,7 @@ class UniqueRingSignature(AbstractRingSignatureScheme):
         # y = g**x
         y = pow(UniqueRingSignature.g, x, UniqueRingSignature.q)
 
-        if verbose:
+        if verbose == True:
             print("KeyGen Config: public key y=" + str(y) + ", private key x=" + str(x) + "\n")
             print("---- KeyGen Completed ---- \n")
         # Caution! I know, keygen should NOT return the private key, but this is needed to "play" through a whole signature - validation process
@@ -181,12 +176,10 @@ class UniqueRingSignature(AbstractRingSignatureScheme):
 
         # Step 3:
         # 
-        ab = ""
         cj = 0
 
         # list count from 0
-        for i in range(len(A)):
-            ab = ab + str(A[i]) + str(B[i])
+        ab = ''.join('{}{}'.format(*t) for t in zip(A,B))
 
         usernr = 0
         for i in range(len(pubkey)):
@@ -210,13 +203,11 @@ class UniqueRingSignature(AbstractRingSignatureScheme):
         # Step 4:
         # 
         # concatenate ct: c1,t1,c2,t2,...,cn,tn
-        ct = ""
-        for i in range(len(pubkey)):
-            ct = ct +","+ str(C[i])+"," + str(T[i])
+        ct = ','.join('{},{}'.format(*t) for t in zip(C,T))
 
         # returning result
-        result = R + ","+message+","+str(pow(h1(mR),x, q)) + ct 
-        if verbose:
+        result = R + ","+message+","+str(pow(h1(mR),x, q))+"," + ct 
+        if verbose == True:
             print("RingSign Result: "+ result)
             print("---- RingSign Completed ---- \n")
         return result
@@ -271,21 +262,21 @@ class UniqueRingSignature(AbstractRingSignatureScheme):
 
         val2 = str(h2(message + list_to_string(R) + gyh1))
         if int(val1) == int(val2):
-            if verbose:
+            if verbose == True:
                 print("Signature is valid!\n")
                 print("Common Result: " + str(val1))
                 print("---- Validation Completed ---- \n")
             return True
         else:
-            if verbose:
+            if verbose == True:
                 print("Signature is not valid!\n")
                 print(str(val1) + " != " + str(val2))
                 print("---- Validation Completed ---- \n")
             return False                                                              
 
-def local_test():
+def local_test(verbose=True):
     # verbose output
-    verbose = True
+    print(verbose)
     
     # user 1 will signate and validate later,
     # therefore his private key is saved for test purposes
@@ -298,7 +289,8 @@ def local_test():
     # usernr start from 0
     # ringsign(self, privkey, usernr, pubkeys, message)
     ring = UniqueRingSignature.ringsign(privKey1, UniqueRingSignature.Rp, "asdf", verbose)
-    print("Result of Signature Validation:")
+    if verbose:
+        print("Result of Signature Validation:")
     # verify(pubkeys, message, signature):
     UniqueRingSignature.verify(UniqueRingSignature.Rp, "asdf", ring, verbose)
 
@@ -307,6 +299,10 @@ if __name__ == '__main__':
     import doctest
     doctest.testmod()
 
-    # run a local test
-    # local_test()
+    if len(sys.argv) > 1:
+        verbose = False
+        if sys.argv[1] == "True":
+            verbose = True
+        # run a local test
+        local_test(verbose)
     
