@@ -1,3 +1,8 @@
+"""
+This file implements the signature scheme from "Unique Ring Signatures: A Practical
+Construction" by Matthew Franklin and Haibin Zhang
+"""
+
 import sys
 import math
 from random import randint
