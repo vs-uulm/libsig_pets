@@ -1,5 +1,6 @@
 This is a library of signatures developed in the exercises for the
-PETS lecture in winter semester 16/17.
+PETS lecture in winter semester 16/17 at the [Institute of Distributed
+Systems](https://www.uni-ulm.de/en/in/vs/) at Ulm University.
 
 WARNING: These schemes are not tested for their security and their
 implementation may be insecure. If you are programming something where
